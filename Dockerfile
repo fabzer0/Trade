@@ -3,9 +3,9 @@ MAINTAINER Peter Adeoye <peter.a@turing.com>
 
 # SETUP DATABASES
 ENV MYSQL_DATABASE 'turing'
-ENV MYSQL_ROOT_PASSWORD 'root'
-ENV MYSQL_USER 'turing'
-ENV MYSQL_PASSWORD 'turing'
+ENV MYSQL_ROOT_PASSWORD 'secretsanta'
+ENV MYSQL_USER 'fabzer0'
+ENV MYSQL_PASSWORD 'secretsanta'
 
 COPY ./database/dump.sql /docker-entrypoint-initdb.d/dump.sql
 
