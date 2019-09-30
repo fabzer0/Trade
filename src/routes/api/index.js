@@ -9,12 +9,14 @@ import attributeRoute from './attribute.route';
 
 const routes = Router();
 
-routes.use('/', welcomeRoute);
-routes.use('/', customerRoute);
-routes.use('/', productRoute);
-routes.use('/', shoppingCartRoute);
-routes.use('/', shippingRoute);
-routes.use('/', taxRoute);
-routes.use('/', attributeRoute);
+const apiPrefix = '/api/v1';
+
+routes.use(welcomeRoute);
+routes.use(apiPrefix, customerRoute);
+routes.use(apiPrefix, productRoute);
+routes.use(apiPrefix, shoppingCartRoute);
+routes.use(apiPrefix, shippingRoute);
+routes.use(apiPrefix, taxRoute);
+routes.use(apiPrefix, attributeRoute);
 
 export default routes;

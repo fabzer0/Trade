@@ -1,8 +1,11 @@
+/* eslint-disable consistent-return */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable camelcase */
 /**
  * The Product controller contains all static methods that handles product request
  * Some methods work fine, some needs to be implemented from scratch while others may contain one or two bugs
  * The static methods and their function include:
- * 
+ *
  * - getAllProducts - Return a paginated list of products
  * - searchProducts - Returns a list of product that matches the search query string
  * - getProductsByCategory - Returns all products in a product category
@@ -13,18 +16,21 @@
  * - getAllCategories - Returns all categories
  * - getSingleCategory - Returns a single category
  * - getDepartmentCategories - Returns all categories in a department
- * 
+ *
  *  NB: Check the BACKEND CHALLENGE TEMPLATE DOCUMENTATION in the readme of this repository to see our recommended
  *  endpoints, request body/param, and response object for each of these method
  */
 import {
   Product,
+  ProductCategory,
   Department,
   AttributeValue,
   Attribute,
   Category,
   Sequelize,
 } from '../database/models';
+import { DEFAULT_PRODUCT_SIZE as defaultSize, DEFAULT_STARTING_PAGE as pageNo } from '../constants';
+import ProductServices from '../services/product.services';
 
 const { Op } = Sequelize;
 
@@ -45,17 +51,26 @@ class ProductController {
    * @memberof ProductController
    */
   static async getAllProducts(req, res, next) {
-    const { query } = req;
-    const { page, limit, offset } = query
+    let { page, limit } = req.query;
+    page = +page || pageNo;
+    limit = +limit || defaultSize;
+    const offset = +page * +limit - +limit;
     const sqlQueryMap = {
       limit,
       offset,
     };
     try {
-      const products = await Product.findAndCountAll(sqlQueryMap);
+      const { count, rows } = await ProductServices._getAllProducts(sqlQueryMap);
+      const totalPages = Math.trunc(count / limit);
+      const paginationMeta = {
+        currentPage: page,
+        currentPageSize: limit,
+        totalPages,
+        totalRecords: count,
+      };
       return res.status(200).json({
-        status: true,
-        products,
+        paginationMeta,
+        rows,
       });
     } catch (error) {
       return next(error);
@@ -73,14 +88,14 @@ class ProductController {
    * @memberof ProductController
    */
   static async searchProduct(req, res, next) {
-    const { query_string, all_words } = req.query;  // eslint-disable-line
+    const { query_string, all_words } = req.query; // eslint-disable-line
     // all_words should either be on or off
     // implement code to search product
     return res.status(200).json({ message: 'this works' });
   }
 
   /**
-   * get all products by caetgory
+   * get all products by category
    *
    * @static
    * @param {object} req express request object
@@ -90,7 +105,6 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProductsByCategory(req, res, next) {
-
     try {
       const { category_id } = req.params; // eslint-disable-line
       const products = await Product.findAndCountAll({
@@ -137,8 +151,7 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProduct(req, res, next) {
-
-    const { product_id } = req.params;  // eslint-disable-line
+    const { product_id } = req.params; // eslint-disable-line
     try {
       const product = await Product.findByPk(product_id, {
         include: [
@@ -174,7 +187,7 @@ class ProductController {
    * @returns {json} json object with status and department list
    * @memberof ProductController
    */
-  static async getAllDepartments(req, res, next) {
+  static async getAllDepartments(_, res, next) {
     try {
       const departments = await Department.findAll();
       return res.status(200).json(departments);
@@ -199,8 +212,8 @@ class ProductController {
       return res.status(404).json({
         error: {
           status: 404,
-          message: `Department with id ${department_id} does not exist`,  // eslint-disable-line
-        }
+          message: `Department with id ${department_id} does not exist`, // eslint-disable-line
+        },
       });
     } catch (error) {
       return next(error);
@@ -213,9 +226,16 @@ class ProductController {
    * @param {*} res
    * @param {*} next
    */
-  static async getAllCategories(req, res, next) {
+  static async getAllCategories(_, res, next) {
     // Implement code to get all categories here
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const categories = await Category.findAll();
+      return res.status(200).json({
+        rows: categories,
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -225,9 +245,46 @@ class ProductController {
    * @param {*} next
    */
   static async getSingleCategory(req, res, next) {
-    const { category_id } = req.params;  // eslint-disable-line
+    const { category_id } = req.params; // eslint-disable-line
     // implement code to get a single category here
-    return res.status(200).json({ message: 'this works' });
+    try {
+      const category = await Category.findByPk(category_id);
+      if (category) {
+        return res.status(200).json(category);
+      }
+      return res.status(404).json({
+        error: {
+          status: 404,
+          // eslint-disable-next-line camelcase
+          message: `Category with id ${category_id} does not exist`,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getProductCategory(req, res, next) {
+    // This method returns a category of a particular product
+    const { product_id } = req.params;
+    try {
+      const { category } = await ProductServices._getProductCategory(product_id);
+      if (category) {
+        return res.status(200).json({
+          category_id: category.category_id,
+          department_id: category.department_id,
+          name: category.name,
+        });
+      }
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `Product with id ${product_id} does not exist`,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -237,9 +294,19 @@ class ProductController {
    * @param {*} next
    */
   static async getDepartmentCategories(req, res, next) {
-    const { department_id } = req.params;  // eslint-disable-line
+    const { department_id } = req.params; // eslint-disable-line
     // implement code to get categories in a department here
-    return res.status(200).json({ message: 'this works' });
+
+    try {
+      const categories = await ProductServices._getDepartmentCategories(department_id);
+      if (categories) {
+        return res.status(200).json({
+          rows: categories,
+        });
+      }
+    } catch (error) {
+      return next(error);
+    }
   }
 }
 
