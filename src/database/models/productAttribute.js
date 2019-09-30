@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
     });
     ProductAttribute.belongsTo(AttributeValue, {
       foreignKey: 'attribute_value_id',
+      as: 'attribute_value',
     });
   };
 
