@@ -41,9 +41,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  ShoppingCart.associate = models => {
-    ShoppingCart.belongsTo(models.Product, {
+  ShoppingCart.associate = ({ Product }) => {
+    ShoppingCart.belongsTo(Product, {
       foreignKey: 'product_id',
+      as: 'products',
       onDelete: 'CASCADE',
     });
   };
