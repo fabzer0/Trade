@@ -1,8 +1,10 @@
+/* eslint-disable camelcase */
+/* eslint-disable no-underscore-dangle */
 /**
  * Check each method in the shopping cart controller and add code to implement
  * the functionality or fix any bug.
  * The static methods and their function include:
- * 
+ *
  * - generateUniqueCart - To generate a unique cart id
  * - addItemToCart - To add new product to the cart
  * - getCart - method to get list of items in a cart
@@ -13,17 +15,19 @@
  * - getCustomerOrders - get all orders of a customer
  * - getOrderSummary - get the details of an order
  * - processStripePayment - process stripe payment
- * 
+ *
  *  NB: Check the BACKEND CHALLENGE TEMPLATE DOCUMENTATION in the readme of this repository to see our recommended
  *  endpoints, request body/param, and response object for each of these method
  */
 
- 
 /**
  *
  *
  * @class shoppingCartController
  */
+import uuid from 'uuid/v4';
+import ShoppingCartServices from '../services/shoppingCart.services';
+
 class ShoppingCartController {
   /**
    * generate random unique id for cart identifier
@@ -34,9 +38,11 @@ class ShoppingCartController {
    * @returns {json} returns json response with cart_id
    * @memberof shoppingCartController
    */
-  static generateUniqueCart(req, res) {
-    // implement method to generate unique cart Id
-    return res.status(200).json({ message: 'this works' });
+  static generateUniqueCart(_, res) {
+    const uniqueID = uuid();
+    return res.status(200).json({
+      cart_id: uniqueID,
+    });
   }
 
   /**
@@ -49,8 +55,27 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async addItemToCart(req, res, next) {
-    // implement function to add item to cart
-    return res.status(200).json({ message: 'this works' });
+    const {
+      body: { cart_id, product_id, attributes, quantity },
+    } = req;
+    try {
+      const cart = await ShoppingCartServices._addItemToCart(
+        cart_id,
+        product_id,
+        attributes,
+        quantity
+      );
+
+      if (cart) {
+        return res.status(200).json(cart);
+      }
+
+      return res.status(400).json({
+        message: 'Could not complete this request',
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -63,8 +88,20 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async getCart(req, res, next) {
-    // implement method to get cart items
-    return res.status(200).json({ message: 'this works' });
+    const { cart_id } = req.params;
+    try {
+      const cart = await ShoppingCartServices._getCart(cart_id);
+      if (cart) {
+        return res.status(200).json(cart);
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: 'This cart has no items.',
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -77,8 +114,22 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async updateCartItem(req, res, next) {
-    const { item_id } = req.params // eslint-disable-line
-    return res.status(200).json({ message: 'this works' });
+    const {
+      params: { item_id },
+      body: { quantity },
+    } = req;
+    try {
+      const newItem = await ShoppingCartServices._updateCartItemQuantity(item_id, quantity);
+      if (!newItem === 'Not Found') {
+        return res.status(200).json(newItem);
+      }
+
+      return res.status(400).json({
+        message: 'Could not complete request',
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -91,8 +142,18 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async emptyCart(req, res, next) {
-    // implement method to empty cart
-    return res.status(200).json({ message: 'this works' });
+    const { cart_id } = req.params;
+    try {
+      const result = await ShoppingCartServices._emptyCart(cart_id);
+      if (result === 1) {
+        return res.status(200).json([]);
+      }
+      return res.status(400).json({
+        message: 'Could not empty the cart',
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -106,9 +167,19 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async removeItemFromCart(req, res, next) {
-
+    const { item_id } = req.params;
     try {
-      // implement code to remove item from cart here
+      const result = await ShoppingCartServices._removeItemFromCart(item_id);
+
+      if (result === 1) {
+        return res.status(200).json({
+          message: 'Success',
+        });
+      }
+
+      return res.status(400).json({
+        message: 'Request was not successful',
+      });
     } catch (error) {
       return next(error);
     }
@@ -124,8 +195,19 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async createOrder(req, res, next) {
+    const {
+      body: { cart_id, shipping_id, tax_id },
+    } = req;
     try {
-      // implement code for creating order here
+      const order = await ShoppingCartServices._createOrder(cart_id, shipping_id, tax_id);
+
+      if (order) {
+        return res.status(201).json(order);
+      }
+
+      return res.status(400).json({
+        message: 'Could not complete this request',
+      });
     } catch (error) {
       return next(error);
     }
@@ -141,9 +223,17 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async getCustomerOrders(req, res, next) {
-    const { customer_id } = req;  // eslint-disable-line
+    const { customer_id } = req.params; // eslint-disable-line
     try {
-      // implement code to get customer order
+      const orders = await ShoppingCartServices._getCustomerOrders(customer_id);
+      if (!orders.length === 0) {
+        return res.status(200).json(orders);
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: `No order history for this customer`,
+      });
     } catch (error) {
       return next(error);
     }
@@ -159,10 +249,33 @@ class ShoppingCartController {
    * @memberof ShoppingCartController
    */
   static async getOrderSummary(req, res, next) {
-    const { order_id } = req.params;  // eslint-disable-line
-    const { customer_id } = req;   // eslint-disable-line
+    const { order_id } = req.params; // eslint-disable-line
     try {
-      // write code to get order summary
+      const order = await ShoppingCartServices._getOrderSummary(order_id);
+      if (order) {
+        return res.status(200).json(order);
+      }
+
+      return res.status(404).json({
+        message: `Order with id ${order_id} is not available.`,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getOrderShortDetails(req, res, next) {
+    const { order_id } = req.params;
+    try {
+      const details = await ShoppingCartServices._getOrderShortDetails(order_id);
+      if (details) {
+        return res.status(200).json(details);
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: `No details for order with id ${order_id}`,
+      });
     } catch (error) {
       return next(error);
     }
@@ -176,7 +289,7 @@ class ShoppingCartController {
    */
   static async processStripePayment(req, res, next) {
     const { email, stripeToken, order_id } = req.body; // eslint-disable-line
-    const { customer_id } = req;  // eslint-disable-line
+    const { customer_id } = req; // eslint-disable-line
     try {
       // implement code to process payment and send order confirmation email here
     } catch (error) {

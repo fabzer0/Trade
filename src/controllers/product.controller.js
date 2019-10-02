@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable consistent-return */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
@@ -105,22 +106,22 @@ class ProductController {
    * @memberof ProductController
    */
   static async getProductsByCategory(req, res, next) {
+    const { category_id } = req.params;
+    let { query: { page, limit } } = req;
+    page = +page || pageNo;
+    limit = +limit || defaultSize;
+    const offset = +page * +limit - +limit;
     try {
-      const { category_id } = req.params; // eslint-disable-line
-      const products = await Product.findAndCountAll({
-        include: [
-          {
-            model: Department,
-            where: {
-              category_id,
-            },
-            attributes: [],
-          },
-        ],
-        limit,
-        offset,
+      // eslint-disable-line
+      const products = await ProductServices._getAllProductsInCategory(category_id, limit, offset);
+
+      if (products) {
+        return res.status(200).json(products);
+      }
+
+      return res.status(404).json({
+        message: 'There are not products in this category.',
       });
-      return next(products);
     } catch (error) {
       return next(error);
     }
@@ -138,6 +139,20 @@ class ProductController {
    */
   static async getProductsByDepartment(req, res, next) {
     // implement the method to get products by department
+    const { department_id } = req.params;
+    try {
+      const products = await ProductServices._getAllProductsInDepartment(department_id);
+      if (products) {
+        return res.status(200).json(products);
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: 'This category has no products yet.',
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 
   /**
@@ -153,25 +168,15 @@ class ProductController {
   static async getProduct(req, res, next) {
     const { product_id } = req.params; // eslint-disable-line
     try {
-      const product = await Product.findByPk(product_id, {
-        include: [
-          {
-            model: AttributeValue,
-            as: 'attributes',
-            attributes: ['value'],
-            through: {
-              attributes: [],
-            },
-            include: [
-              {
-                model: Attribute,
-                as: 'attribute_type',
-              },
-            ],
-          },
-        ],
+      const product = await ProductServices._getSingleProduct(product_id);
+      if (product) {
+        return res.status(200).json(product);
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: `Product with id ${product_id} does not exist`,
       });
-      return res.status(500).json({ message: 'This works!!1' });
     } catch (error) {
       return next(error);
     }
@@ -304,6 +309,40 @@ class ProductController {
           rows: categories,
         });
       }
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getProductReviews(req, res, next) {
+    const { product_id } = req.params;
+    try {
+      const reviews = await ProductServices._getProductReviews(product_id);
+      if (reviews.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'This product has not reviews yet.',
+        });
+      }
+
+      return res.status(200).json(reviews);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async postReview(req, res, next) {
+    const { headers: { customer_id }, body: { product_id, review, rating } } = req;
+    try {
+      const reviews = await ProductServices._postReview(customer_id, product_id, review, rating);
+
+      if (reviews) {
+        return res.status(201).json(reviews)
+      }
+
+      return res.status(400).json({
+        message: 'Could not complete this request',
+      });
     } catch (error) {
       return next(error);
     }

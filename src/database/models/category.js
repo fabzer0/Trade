@@ -29,11 +29,13 @@ module.exports = (sequelize, DataTypes) => {
   Category.associate = ({ Department, Product }) => {
     Category.belongsTo(Department, {
       foreignKey: 'department_id',
+      as: 'department',
       onDelete: 'CASCADE',
     });
 
     Category.belongsToMany(Product, {
       through: 'ProductCategory',
+      as: 'products',
       foreignKey: 'category_id',
     });
   };

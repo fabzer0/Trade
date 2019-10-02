@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 /**
  * The Shipping Controller contains all the static methods that handles all shipping request
  * This piece of code work fine, but you can test and debug any detected issue
@@ -6,7 +7,7 @@
  * - getShippingType - Returns a list of shipping type in a specific shipping region
  *
  */
-import { ShippingRegion, Shipping } from '../database/models';
+import ShippingServices from '../services/shipping.services';
 
 class ShippingController {
   /**
@@ -21,9 +22,15 @@ class ShippingController {
    */
   static async getShippingRegions(req, res, next) {
     try {
-      const shippingRegions = await ShippingRegion.findAll();
-      return res.status(200).json({
-        shippingRegions,
+      const regions = await ShippingServices._getAllShippingRegions();
+
+      if (regions) {
+        return res.status(200).json(regions)
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: 'No regions to display yet.',
       });
     } catch (error) {
       return next(error);
@@ -43,15 +50,15 @@ class ShippingController {
   static async getShippingType(req, res, next) {
     const { shipping_region_id } = req.params; // eslint-disable-line
     try {
-      const shippingTypes = await Shipping.findAll({
-        where: {
-          shipping_region_id,
-        },
-      });
+      const shippingTypes = await ShippingServices._getShippingType(shipping_region_id);
+      if (shippingTypes.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'We have no shippings in this region yet.',
+        });
+      }
 
-      return res.status(200).json({
-        shippingTypes,
-      });
+      return res.status(200).json(shippingTypes);
     } catch (error) {
       return next(error);
     }
